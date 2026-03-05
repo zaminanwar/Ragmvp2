@@ -202,11 +202,21 @@ export default function ChatPage() {
             <Send className="w-4 h-4" />
           </button>
         </div>
-        <div className="text-center mt-2 text-xs text-gray-600">
-          {activeWorkspace.enable_hybrid_search ? 'Hybrid Search' : 'Vector Search'}
-          {activeWorkspace.enable_reranking && ' + Reranking'}
-          {' | '}
-          {activeWorkspace.llm_model || 'Default Model'}
+        <div className="flex flex-wrap justify-center gap-1.5 mt-2 text-xs text-gray-500">
+          <span>{activeWorkspace.llm_model || 'Default Model'}</span>
+          <span className="text-gray-700">|</span>
+          <span>{activeWorkspace.enable_hybrid_search ? 'Hybrid' : 'Vector'}</span>
+          {activeWorkspace.enable_reranking && <span className="text-blue-400">Reranking</span>}
+          {activeWorkspace.enable_adaptive_routing && <span className="text-purple-400">Adaptive</span>}
+          {activeWorkspace.enable_self_reflection && <span className="text-amber-400">Self-Reflect</span>}
+          {activeWorkspace.enable_hyde && <span className="text-cyan-400">HyDE</span>}
+          {activeWorkspace.enable_query_decomposition && <span className="text-rose-400">Decompose</span>}
+          {activeWorkspace.enable_knowledge_graph && <span className="text-orange-400">KG</span>}
+          {activeWorkspace.enable_semantic_cache && <span className="text-indigo-400">Cache</span>}
+          {activeWorkspace.enable_contextual_embeddings && <span className="text-teal-400">Contextual</span>}
+          {activeWorkspace.chunk_strategy && activeWorkspace.chunk_strategy !== 'recursive' && (
+            <span className="text-gray-400">{activeWorkspace.chunk_strategy}</span>
+          )}
         </div>
       </div>
     </div>

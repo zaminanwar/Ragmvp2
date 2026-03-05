@@ -17,6 +17,14 @@ export interface Workspace {
   similarity_top_k: number;
   enable_hybrid_search: boolean;
   enable_reranking: boolean;
+  enable_adaptive_routing: boolean;
+  enable_self_reflection: boolean;
+  enable_hyde: boolean;
+  enable_query_decomposition: boolean;
+  enable_contextual_embeddings: boolean;
+  enable_knowledge_graph: boolean;
+  enable_semantic_cache: boolean;
+  chunk_strategy: string;
 }
 
 export interface Document {
