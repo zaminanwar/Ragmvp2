@@ -1,0 +1,67 @@
+# Web Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.18
+websockets==14.1
+
+# Database
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+psycopg2-binary==2.9.10
+alembic==1.14.0
+pgvector==0.3.6
+
+# Redis
+redis[hiredis]==5.2.1
+
+# Elasticsearch
+elasticsearch[async]==8.12.0
+
+# Object Storage
+minio==7.2.12
+
+# Auth
+pyjwt==2.10.1
+passlib[bcrypt]==1.7.4
+bcrypt==4.2.1
+python-jose[cryptography]==3.3.0
+
+# LLM Providers
+openai==1.58.1
+anthropic==0.40.0
+httpx==0.28.1
+
+# Embeddings & Vector
+sentence-transformers==3.3.1
+numpy==1.26.4
+
+# Document Processing
+pypdf==5.1.0
+python-docx==1.1.2
+python-pptx==1.0.2
+openpyxl==3.1.5
+beautifulsoup4==4.12.3
+markdownify==0.14.1
+python-magic==0.4.27
+chardet==5.2.0
+unstructured==0.16.11
+
+# Chunking
+tiktoken==0.8.0
+langchain-text-splitters==0.3.4
+
+# Agentic RAG
+langgraph>=0.2.0
+langchain-core>=0.3.0
+
+# Reranking
+cohere==5.13.2
+
+# Configuration
+pydantic[email]==2.10.3
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
+
+# Utilities
+tenacity==9.0.0
+structlog==24.4.0
