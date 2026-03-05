@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     ollama_base_url: str = "http://localhost:11434"
+    cohere_api_key: Optional[str] = None
 
     # Default LLM
     default_llm_provider: str = "openai"

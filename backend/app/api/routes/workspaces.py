@@ -24,6 +24,15 @@ class CreateWorkspaceRequest(BaseModel):
     similarity_top_k: int = 5
     enable_hybrid_search: bool = True
     enable_reranking: bool = True
+    # Agentic RAG features
+    enable_adaptive_routing: bool = True
+    enable_self_reflection: bool = True
+    enable_hyde: bool = False
+    enable_query_decomposition: bool = False
+    enable_contextual_embeddings: bool = False
+    enable_knowledge_graph: bool = False
+    enable_semantic_cache: bool = False
+    chunk_strategy: str = "recursive"
 
 
 class UpdateWorkspaceRequest(BaseModel):
@@ -36,6 +45,15 @@ class UpdateWorkspaceRequest(BaseModel):
     similarity_top_k: int | None = None
     enable_hybrid_search: bool | None = None
     enable_reranking: bool | None = None
+    # Agentic RAG features
+    enable_adaptive_routing: bool | None = None
+    enable_self_reflection: bool | None = None
+    enable_hyde: bool | None = None
+    enable_query_decomposition: bool | None = None
+    enable_contextual_embeddings: bool | None = None
+    enable_knowledge_graph: bool | None = None
+    enable_semantic_cache: bool | None = None
+    chunk_strategy: str | None = None
 
 
 class WorkspaceResponse(BaseModel):
@@ -49,6 +67,15 @@ class WorkspaceResponse(BaseModel):
     similarity_top_k: int
     enable_hybrid_search: bool
     enable_reranking: bool
+    # Agentic RAG features
+    enable_adaptive_routing: bool
+    enable_self_reflection: bool
+    enable_hyde: bool
+    enable_query_decomposition: bool
+    enable_contextual_embeddings: bool
+    enable_knowledge_graph: bool
+    enable_semantic_cache: bool
+    chunk_strategy: str
 
 
 class AddMemberRequest(BaseModel):
@@ -74,6 +101,14 @@ async def create_workspace(body: CreateWorkspaceRequest, user: CurrentUser, db: 
         similarity_top_k=body.similarity_top_k,
         enable_hybrid_search=body.enable_hybrid_search,
         enable_reranking=body.enable_reranking,
+        enable_adaptive_routing=body.enable_adaptive_routing,
+        enable_self_reflection=body.enable_self_reflection,
+        enable_hyde=body.enable_hyde,
+        enable_query_decomposition=body.enable_query_decomposition,
+        enable_contextual_embeddings=body.enable_contextual_embeddings,
+        enable_knowledge_graph=body.enable_knowledge_graph,
+        enable_semantic_cache=body.enable_semantic_cache,
+        chunk_strategy=body.chunk_strategy,
     )
     return _to_response(ws)
 
@@ -123,4 +158,12 @@ def _to_response(ws) -> WorkspaceResponse:
         similarity_top_k=ws.similarity_top_k,
         enable_hybrid_search=ws.enable_hybrid_search,
         enable_reranking=ws.enable_reranking,
+        enable_adaptive_routing=getattr(ws, "enable_adaptive_routing", True),
+        enable_self_reflection=getattr(ws, "enable_self_reflection", True),
+        enable_hyde=getattr(ws, "enable_hyde", False),
+        enable_query_decomposition=getattr(ws, "enable_query_decomposition", False),
+        enable_contextual_embeddings=getattr(ws, "enable_contextual_embeddings", False),
+        enable_knowledge_graph=getattr(ws, "enable_knowledge_graph", False),
+        enable_semantic_cache=getattr(ws, "enable_semantic_cache", False),
+        chunk_strategy=getattr(ws, "chunk_strategy", "recursive"),
     )

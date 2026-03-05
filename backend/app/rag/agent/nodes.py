@@ -391,12 +391,14 @@ async def generate(state: dict, *, llm: BaseLLM) -> dict:
     system_prompt = state.get("system_prompt", "")
     start = time.monotonic()
 
-    # Build context string
+    # Build context string (expand to parent content for hierarchical chunks)
     if documents:
         context_parts = []
         for i, doc in enumerate(documents):
             source_info = doc.get("metadata", {}).get("filename", "Unknown source")
-            context_parts.append(f"[Source {i+1}] ({source_info}):\n{doc['content']}")
+            # Use parent content if available (hierarchical chunking)
+            content = doc.get("metadata", {}).get("parent_content", doc["content"])
+            context_parts.append(f"[Source {i+1}] ({source_info}):\n{content}")
         context = "\n\n---\n\n".join(context_parts)
     else:
         context = "No relevant documents were found for this question."

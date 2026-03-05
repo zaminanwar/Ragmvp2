@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import get_settings
 from app.core.exceptions import NotFoundError
 from app.models.chat import Citation, Conversation, Message
 from app.models.workspace import Workspace
@@ -15,7 +16,7 @@ from app.rag.embeddings.providers import get_embedding_provider
 from app.rag.engine import RAGEngine, RAGResponse
 from app.rag.llm.factory import get_llm_provider
 from app.rag.retrieval.hybrid_search import HybridRetriever
-from app.rag.retrieval.reranker import LLMReranker
+from app.rag.retrieval.reranker import CohereReranker, LLMReranker
 
 logger = structlog.get_logger()
 
@@ -23,6 +24,24 @@ logger = structlog.get_logger()
 class ChatService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self._semantic_cache = None
+
+    async def _get_semantic_cache(self, workspace: Workspace):
+        """Lazily initialize semantic cache if enabled."""
+        if not getattr(workspace, "enable_semantic_cache", False):
+            return None
+        if self._semantic_cache is None:
+            try:
+                import redis.asyncio as aioredis
+                from app.rag.cache import SemanticCache
+                settings = get_settings()
+                redis_client = aioredis.from_url(settings.redis_url)
+                embedding = get_embedding_provider(provider=workspace.embedding_provider)
+                self._semantic_cache = SemanticCache(redis_client, embedding)
+            except Exception as e:
+                logger.warning("semantic_cache_init_failed", error=str(e))
+                return None
+        return self._semantic_cache
 
     def _build_engine(self, workspace: Workspace) -> RAGEngine:
         """Build a RAG engine configured for the workspace."""
@@ -31,8 +50,19 @@ class ChatService:
             model=workspace.llm_model,
         )
         embedding = get_embedding_provider(provider=workspace.embedding_provider)
-        retriever = HybridRetriever(self.db, embedding)
-        reranker = LLMReranker(llm) if workspace.enable_reranking else None
+
+        enable_graph = getattr(workspace, "enable_knowledge_graph", False)
+        retriever = HybridRetriever(self.db, embedding, enable_graph=enable_graph)
+
+        # Use Cohere reranker if API key is available, otherwise LLM-based
+        reranker = None
+        if workspace.enable_reranking:
+            settings = get_settings()
+            cohere_key = getattr(settings, "cohere_api_key", None)
+            if cohere_key:
+                reranker = CohereReranker(api_key=cohere_key)
+            else:
+                reranker = LLMReranker(llm)
 
         return RAGEngine(
             llm=llm,
@@ -111,16 +141,50 @@ class ChatService:
             for m in conv.messages[-10:]
         ]
 
-        # Run RAG pipeline
-        engine = self._build_engine(workspace)
-        rag_response = await engine.query(
-            query=user_message,
-            workspace_id=workspace.id,
-            system_prompt=workspace.system_prompt,
-            chat_history=chat_history,
-            top_k=workspace.similarity_top_k,
-            temperature=workspace.temperature,
-        )
+        # Check semantic cache first
+        cache = await self._get_semantic_cache(workspace)
+        cached_response = None
+        if cache:
+            cached_response = await cache.get(user_message, str(workspace.id))
+
+        if cached_response:
+            rag_response = RAGResponse(
+                content=cached_response["content"],
+                citations=cached_response.get("citations", []),
+                context=None,
+                model=cached_response.get("model", "cached"),
+                input_tokens=0,
+                output_tokens=0,
+            )
+            logger.info("semantic_cache_hit", query=user_message[:60])
+        else:
+            # Run RAG pipeline
+            engine = self._build_engine(workspace)
+            rag_response = await engine.query(
+                query=user_message,
+                workspace_id=workspace.id,
+                system_prompt=workspace.system_prompt,
+                chat_history=chat_history,
+                top_k=workspace.similarity_top_k,
+                temperature=workspace.temperature,
+            )
+
+            # Store in semantic cache
+            if cache:
+                try:
+                    ttl = getattr(workspace, "cache_ttl_seconds", 3600)
+                    await cache.set(
+                        user_message,
+                        str(workspace.id),
+                        {
+                            "content": rag_response.content,
+                            "citations": rag_response.citations,
+                            "model": rag_response.model,
+                        },
+                        ttl=ttl,
+                    )
+                except Exception as cache_err:
+                    logger.warning("semantic_cache_store_failed", error=str(cache_err))
 
         # Save assistant message
         assistant_msg = Message(

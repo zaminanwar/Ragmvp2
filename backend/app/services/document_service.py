@@ -40,8 +40,11 @@ class DocumentService:
     ) -> Document:
         """Upload, parse, chunk, embed, and index a document."""
         settings = get_settings()
-        chunk_size = chunk_size or settings.chunk_size
-        chunk_overlap = chunk_overlap or settings.chunk_overlap
+        workspace = await self._get_workspace(workspace_id)
+        chunk_size = chunk_size or (workspace.chunk_size if workspace else settings.chunk_size)
+        chunk_overlap = chunk_overlap or (workspace.chunk_overlap if workspace else settings.chunk_overlap)
+        if chunk_strategy == "recursive" and workspace:
+            chunk_strategy = getattr(workspace, "chunk_strategy", "recursive") or "recursive"
 
         # 1. Upload to storage
         storage_path = self.storage.upload_file(
@@ -121,6 +124,42 @@ class DocumentService:
             await self.db.flush()
 
             logger.info("document_indexed", doc_id=str(doc.id), chunks=len(chunks))
+
+            # 7. Knowledge Graph extraction (if enabled)
+            enable_kg = getattr(
+                await self._get_workspace(workspace_id), "enable_knowledge_graph", False
+            )
+            if enable_kg:
+                try:
+                    from app.rag.knowledge_graph.extractor import KnowledgeGraphExtractor
+                    from app.rag.knowledge_graph.store import KnowledgeGraphStore
+                    from app.rag.llm.factory import get_llm_provider
+
+                    kg_llm = get_llm_provider()
+                    extractor = KnowledgeGraphExtractor(kg_llm)
+                    kg_store = KnowledgeGraphStore(self.db, embedding_provider)
+
+                    kg_chunks = []
+                    result_chunks = await self.db.execute(
+                        select(DocumentChunk.id, DocumentChunk.content).where(
+                            DocumentChunk.document_id == doc.id
+                        )
+                    )
+                    for row in result_chunks.all():
+                        kg_chunks.append({"chunk_id": str(row.id), "content": row.content})
+
+                    entities, relationships = await extractor.extract_from_document(kg_chunks)
+                    name_to_id = await kg_store.store_entities(entities, workspace_id)
+                    await kg_store.store_relationships(relationships, name_to_id, workspace_id)
+
+                    logger.info(
+                        "knowledge_graph_built",
+                        doc_id=str(doc.id),
+                        entities=len(entities),
+                        relationships=len(relationships),
+                    )
+                except Exception as kg_err:
+                    logger.warning("knowledge_graph_extraction_failed", doc_id=str(doc.id), error=str(kg_err))
 
         except Exception as e:
             doc.status = DocumentStatus.FAILED.value

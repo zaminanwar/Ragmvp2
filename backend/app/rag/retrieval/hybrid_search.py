@@ -1,6 +1,7 @@
 """Hybrid search with Reciprocal Rank Fusion and source diversity.
 
-Combines vector similarity + BM25 full-text search with RRF fusion.
+Combines vector similarity + BM25 full-text search + optional knowledge graph
+retrieval with RRF fusion.
 Includes source diversity logic to ensure results span multiple documents.
 """
 
@@ -18,7 +19,7 @@ logger = structlog.get_logger()
 
 
 class HybridRetriever(BaseRetriever):
-    """Combines vector and full-text search using RRF with source diversity.
+    """Combines vector, full-text, and optionally graph search using RRF with source diversity.
 
     Two-pass fusion algorithm:
     1. Best result per source document (ensures diversity)
@@ -31,13 +32,23 @@ class HybridRetriever(BaseRetriever):
         embedding_provider: BaseEmbedding,
         vector_weight: float = 0.6,
         fulltext_weight: float = 0.4,
+        graph_weight: float = 0.3,
         rrf_k: int = 60,
+        enable_graph: bool = False,
     ):
+        self.db = db
+        self.embedding_provider = embedding_provider
         self.vector_retriever = VectorRetriever(db, embedding_provider)
         self.fulltext_retriever = FullTextRetriever()
+        self.graph_retriever = None
         self.vector_weight = vector_weight
         self.fulltext_weight = fulltext_weight
+        self.graph_weight = graph_weight
         self.rrf_k = rrf_k
+
+        if enable_graph:
+            from app.rag.knowledge_graph.retriever import GraphRetriever
+            self.graph_retriever = GraphRetriever(db, embedding_provider)
 
     async def retrieve(
         self,
@@ -45,23 +56,33 @@ class HybridRetriever(BaseRetriever):
         workspace_id: UUID,
         top_k: int = 5,
     ) -> list[RetrievalResult]:
-        # Run both searches in parallel
-        vector_task = self.vector_retriever.retrieve(query, workspace_id, top_k=top_k * 2)
-        fulltext_task = self.fulltext_retriever.retrieve(query, workspace_id, top_k=top_k * 2)
+        # Run all searches in parallel
+        tasks = [
+            self.vector_retriever.retrieve(query, workspace_id, top_k=top_k * 2),
+            self.fulltext_retriever.retrieve(query, workspace_id, top_k=top_k * 2),
+        ]
+        if self.graph_retriever:
+            tasks.append(self.graph_retriever.retrieve(query, workspace_id, top_k=top_k * 2))
 
-        vector_results, fulltext_results = await asyncio.gather(
-            vector_task, fulltext_task, return_exceptions=True,
-        )
+        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Handle failures gracefully
+        vector_results = raw_results[0] if not isinstance(raw_results[0], Exception) else []
+        fulltext_results = raw_results[1] if not isinstance(raw_results[1], Exception) else []
+        graph_results = []
+
         if isinstance(vector_results, Exception):
-            logger.warning("vector_search_failed", error=str(vector_results))
+            logger.warning("vector_search_failed", error=str(raw_results[0]))
             vector_results = []
         if isinstance(fulltext_results, Exception):
-            logger.warning("fulltext_search_failed", error=str(fulltext_results))
+            logger.warning("fulltext_search_failed", error=str(raw_results[1]))
             fulltext_results = []
+        if len(raw_results) > 2:
+            if isinstance(raw_results[2], Exception):
+                logger.warning("graph_search_failed", error=str(raw_results[2]))
+            else:
+                graph_results = raw_results[2]
 
-        if not vector_results and not fulltext_results:
+        if not vector_results and not fulltext_results and not graph_results:
             return []
 
         # Compute RRF scores
@@ -75,6 +96,12 @@ class HybridRetriever(BaseRetriever):
 
         for rank, result in enumerate(fulltext_results):
             rrf_score = self.fulltext_weight / (self.rrf_k + rank + 1)
+            rrf_scores[result.chunk_id] = rrf_scores.get(result.chunk_id, 0) + rrf_score
+            if result.chunk_id not in chunk_map:
+                chunk_map[result.chunk_id] = result
+
+        for rank, result in enumerate(graph_results):
+            rrf_score = self.graph_weight / (self.rrf_k + rank + 1)
             rrf_scores[result.chunk_id] = rrf_scores.get(result.chunk_id, 0) + rrf_score
             if result.chunk_id not in chunk_map:
                 chunk_map[result.chunk_id] = result
@@ -116,6 +143,7 @@ class HybridRetriever(BaseRetriever):
             "hybrid_retrieval",
             vector_count=len(vector_results),
             fulltext_count=len(fulltext_results),
+            graph_count=len(graph_results),
             fused_count=len(results),
             unique_sources=len(seen_sources),
         )
