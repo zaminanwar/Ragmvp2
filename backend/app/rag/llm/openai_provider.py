@@ -2,6 +2,7 @@
 
 from typing import AsyncIterator
 
+import httpx
 import openai
 
 from app.config import get_settings
@@ -12,7 +13,10 @@ class OpenAIProvider(BaseLLM):
     def __init__(self, model: str | None = None, api_key: str | None = None):
         settings = get_settings()
         self.model = model or settings.default_llm_model
-        self._client = openai.AsyncOpenAI(api_key=api_key or settings.openai_api_key)
+        self._client = openai.AsyncOpenAI(
+            api_key=api_key or settings.openai_api_key,
+            http_client=httpx.AsyncClient(verify=False),
+        )
 
     def _build_messages(
         self, prompt: str, system: str | None = None

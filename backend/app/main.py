@@ -1,10 +1,12 @@
 """Enterprise RAG System - Main FastAPI Application."""
 
+import os
 from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.core.middleware import RateLimitMiddleware, RequestLoggingMiddleware
@@ -102,6 +104,11 @@ def create_app() -> FastAPI:
     app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
     app.include_router(evaluation.router, prefix="/api/eval", tags=["Evaluation"])
     app.include_router(workflows.router, prefix="/api/workflows", tags=["Workflows"])
+
+    # Serve exported files (compliance reports, etc.)
+    exports_dir = os.path.join(os.path.dirname(__file__), "..", "exports")
+    os.makedirs(exports_dir, exist_ok=True)
+    app.mount("/api/exports", StaticFiles(directory=exports_dir), name="exports")
 
     @app.get("/api/health")
     async def health_check():

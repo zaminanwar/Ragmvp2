@@ -60,6 +60,7 @@ class WorkflowService:
         )
         self.db.add(defn)
         await self.db.flush()
+        await self.db.refresh(defn)
         return defn
 
     async def get_definition(self, workflow_id: uuid.UUID) -> WorkflowDefinition:
@@ -97,6 +98,7 @@ class WorkflowService:
         defn = await self.get_definition(workflow_id)
         defn.status = DefinitionStatus.PUBLISHED.value
         await self.db.flush()
+        await self.db.refresh(defn)
         return defn
 
     async def validate_definition(self, definition_json: dict) -> list[str]:
@@ -154,6 +156,7 @@ class WorkflowService:
         )
         self.db.add(run)
         await self.db.flush()
+        await self.db.refresh(run)
         return run
 
     async def rerun_from_step(
@@ -197,6 +200,7 @@ class WorkflowService:
         )
         self.db.add(new_run)
         await self.db.flush()
+        await self.db.refresh(new_run)
         return new_run
 
     async def get_run(self, run_id: uuid.UUID) -> WorkflowRun:

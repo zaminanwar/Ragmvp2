@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, DbSession, ManagerUser
@@ -78,10 +78,10 @@ async def create_definition(
 
 @router.get("/definitions")
 async def list_definitions(
+    user: CurrentUser,
+    db: DbSession,
     workspace_id: uuid.UUID = Query(...),
     status: str | None = Query(None),
-    user: CurrentUser = Depends(),
-    db: DbSession = Depends(),
 ):
     service = WorkflowService(db)
     defs = await service.list_definitions(workspace_id, status=status)
@@ -91,8 +91,8 @@ async def list_definitions(
 @router.get("/definitions/{workflow_id}")
 async def get_definition(
     workflow_id: uuid.UUID,
-    user: CurrentUser = Depends(),
-    db: DbSession = Depends(),
+    user: CurrentUser,
+    db: DbSession,
 ):
     service = WorkflowService(db)
     defn = await service.get_definition(workflow_id)
@@ -126,8 +126,8 @@ async def publish_definition(
 @router.post("/definitions/validate")
 async def validate_definition(
     req: ValidateDefinitionRequest,
-    user: CurrentUser = Depends(),
-    db: DbSession = Depends(),
+    user: CurrentUser,
+    db: DbSession,
 ):
     service = WorkflowService(db)
     errors = await service.validate_definition(req.definition_json)
@@ -140,8 +140,8 @@ async def validate_definition(
 @router.post("/runs")
 async def start_run(
     req: StartRunRequest,
-    user: CurrentUser = Depends(),
-    db: DbSession = Depends(),
+    user: CurrentUser,
+    db: DbSession,
 ):
     service = WorkflowService(db)
     run = await service.start_run(
@@ -150,6 +150,9 @@ async def start_run(
         triggered_by=user.id,
         input_json=req.input_json,
     )
+
+    # Commit before enqueuing so the scheduler can find the row
+    await db.commit()
 
     # Enqueue for execution
     from app.config import get_settings
@@ -166,11 +169,11 @@ async def start_run(
 
 @router.get("/runs")
 async def list_runs(
+    user: CurrentUser,
+    db: DbSession,
     workspace_id: uuid.UUID = Query(...),
     workflow_id: uuid.UUID | None = Query(None),
     status: str | None = Query(None),
-    user: CurrentUser = Depends(),
-    db: DbSession = Depends(),
 ):
     service = WorkflowService(db)
     runs = await service.list_runs(workspace_id, workflow_id=workflow_id, status=status)
@@ -180,8 +183,8 @@ async def list_runs(
 @router.get("/runs/{run_id}")
 async def get_run(
     run_id: uuid.UUID,
-    user: CurrentUser = Depends(),
-    db: DbSession = Depends(),
+    user: CurrentUser,
+    db: DbSession,
 ):
     service = WorkflowService(db)
     run = await service.get_run(run_id)
@@ -191,8 +194,8 @@ async def get_run(
 @router.get("/runs/{run_id}/progress")
 async def get_run_progress(
     run_id: uuid.UUID,
-    user: CurrentUser = Depends(),
-    db: DbSession = Depends(),
+    user: CurrentUser,
+    db: DbSession,
 ):
     service = WorkflowService(db)
     return await service.get_run_progress(run_id)
@@ -201,8 +204,8 @@ async def get_run_progress(
 @router.get("/runs/{run_id}/steps")
 async def get_run_steps(
     run_id: uuid.UUID,
-    user: CurrentUser = Depends(),
-    db: DbSession = Depends(),
+    user: CurrentUser,
+    db: DbSession,
 ):
     service = WorkflowService(db)
     steps = await service.get_run_steps(run_id)
@@ -228,8 +231,8 @@ async def get_run_steps(
 @router.post("/runs/{run_id}/cancel")
 async def cancel_run(
     run_id: uuid.UUID,
-    user: CurrentUser = Depends(),
-    db: DbSession = Depends(),
+    user: CurrentUser,
+    db: DbSession,
 ):
     service = WorkflowService(db)
     run = await service.cancel_run(run_id)
@@ -240,9 +243,9 @@ async def cancel_run(
 async def rerun_from_step(
     run_id: uuid.UUID,
     step_id: str,
+    user: CurrentUser,
+    db: DbSession,
     req: RerunFromStepRequest | None = None,
-    user: CurrentUser = Depends(),
-    db: DbSession = Depends(),
 ):
     service = WorkflowService(db)
     overrides = req.overrides if req else None
@@ -252,6 +255,9 @@ async def rerun_from_step(
         overrides=overrides,
         triggered_by=user.id,
     )
+
+    # Commit before enqueuing so the scheduler can find the row
+    await db.commit()
 
     # Enqueue
     from app.config import get_settings
@@ -292,9 +298,9 @@ async def get_audit_trail(
 
 @router.get("/approvals/pending")
 async def list_pending_approvals(
+    user: ManagerUser,
+    db: DbSession,
     workspace_id: uuid.UUID = Query(...),
-    user: ManagerUser = Depends(),
-    db: DbSession = Depends(),
 ):
     service = WorkflowService(db)
     approvals = await service.list_pending_approvals(workspace_id)
@@ -326,6 +332,9 @@ async def decide_approval(
         comment=req.comment,
     )
 
+    # Commit before resuming so the scheduler sees the updated status
+    await db.commit()
+
     # If approved, resume the run
     if req.approved:
         from app.config import get_settings
@@ -344,7 +353,7 @@ async def decide_approval(
 
 
 @router.get("/tools")
-async def list_tools(user: CurrentUser = Depends()):
+async def list_tools(user: CurrentUser):
     return ToolRegistry.list_tools()
 
 

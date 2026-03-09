@@ -84,10 +84,17 @@ class WorkflowScheduler:
 
         async with self._session_factory() as db:
             try:
-                result = await db.execute(
-                    select(WorkflowRun).where(WorkflowRun.id == run_id)
-                )
-                run = result.scalar_one_or_none()
+                # Retry lookup in case the creating transaction hasn't committed yet
+                run = None
+                for attempt in range(3):
+                    result = await db.execute(
+                        select(WorkflowRun).where(WorkflowRun.id == run_id)
+                    )
+                    run = result.scalar_one_or_none()
+                    if run:
+                        break
+                    logger.warning("workflow_run_not_yet_visible", run_id=str(run_id), attempt=attempt)
+                    await asyncio.sleep(0.5)
 
                 if not run:
                     logger.error("workflow_run_not_found", run_id=str(run_id))

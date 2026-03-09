@@ -99,7 +99,10 @@ class RagQueryTool(BaseTool):
                     data={
                         "content": response.content,
                         "citations": [
-                            {"excerpt": c.excerpt, "relevance_score": c.relevance_score}
+                            {
+                                "excerpt": c.get("excerpt", "") if isinstance(c, dict) else getattr(c, "excerpt", ""),
+                                "relevance_score": c.get("relevance_score", 0) if isinstance(c, dict) else getattr(c, "relevance_score", 0),
+                            }
                             for c in (response.citations or [])
                         ],
                         "model": response.model,
@@ -155,7 +158,10 @@ class RagBatchQueryTool(BaseTool):
                         "query": query_text,
                         "content": response.content,
                         "citations": [
-                            {"excerpt": c.excerpt, "relevance_score": c.relevance_score}
+                            {
+                                "excerpt": c.get("excerpt", "") if isinstance(c, dict) else getattr(c, "excerpt", ""),
+                                "relevance_score": c.get("relevance_score", 0) if isinstance(c, dict) else getattr(c, "relevance_score", 0),
+                            }
                             for c in (response.citations or [])
                         ],
                     })

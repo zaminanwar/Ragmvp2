@@ -13,7 +13,10 @@ class OpenAIEmbedding(BaseEmbedding):
     def __init__(self, model: str | None = None, api_key: str | None = None):
         settings = get_settings()
         self.model = model or settings.default_embedding_model
-        self._client = openai.AsyncOpenAI(api_key=api_key or settings.openai_api_key)
+        self._client = openai.AsyncOpenAI(
+            api_key=api_key or settings.openai_api_key,
+            http_client=httpx.AsyncClient(verify=False),
+        )
         self._dims = settings.embedding_dimensions
 
     async def embed_text(self, text: str) -> list[float]:

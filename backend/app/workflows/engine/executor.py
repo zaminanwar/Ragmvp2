@@ -380,7 +380,10 @@ class WorkflowExecutor:
     # ── Persistence helpers ──────────────────────────────────────────────
 
     async def _save_state(self) -> None:
+        from sqlalchemy.orm.attributes import flag_modified
+
         self.run.state_json = self._state
+        flag_modified(self.run, "state_json")
         self.db.add(self.run)
         await self.db.flush()
 
@@ -402,6 +405,6 @@ class WorkflowExecutor:
         logger.info(
             "workflow_audit",
             run_id=str(self.run.id),
-            event=event_type,
+            event_type=event_type,
             step_id=step_id,
         )
