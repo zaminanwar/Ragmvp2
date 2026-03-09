@@ -70,3 +70,93 @@ export interface LLMProvider {
   embedding_models: string[];
   status?: string;
 }
+
+// ── Workflow Types ──────────────────────────────────────────────────────
+
+export interface WorkflowDefinition {
+  id: string;
+  workspace_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  version: number;
+  status: 'draft' | 'published' | 'archived';
+  definition_json: WorkflowSchema;
+  is_template: boolean;
+  required_role: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowSchema {
+  version: string;
+  inputs: Record<string, { type: string; description: string; required: boolean }>;
+  outputs: Record<string, { type: string; from: string }>;
+  steps: WorkflowStep[];
+}
+
+export interface WorkflowStep {
+  id: string;
+  name: string;
+  tool: string;
+  inputs: Record<string, any>;
+  outputs: string[];
+  checkpoint?: { type: string; message: string; required_role: string };
+  loop?: { over: string; as: string; batch_size?: number };
+  retry?: { max_attempts: number; backoff_seconds: number };
+  timeout_seconds?: number;
+}
+
+export type WorkflowRunStatus =
+  | 'pending' | 'running' | 'paused' | 'waiting_approval'
+  | 'completed' | 'failed' | 'cancelled';
+
+export interface WorkflowRun {
+  id: string;
+  workflow_id: string;
+  workspace_id: string;
+  triggered_by: string;
+  status: WorkflowRunStatus;
+  current_step_index: number;
+  progress_pct: number;
+  input_json: Record<string, any>;
+  output_json: Record<string, any> | null;
+  error_message: string | null;
+  parent_run_id: string | null;
+  overrides_json: Record<string, any> | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface WorkflowStepResult {
+  id: string;
+  step_id: string;
+  step_index: number;
+  tool_name: string;
+  status: string;
+  input_json: Record<string, any>;
+  output_json: Record<string, any> | null;
+  error_message: string | null;
+  duration_ms: number | null;
+  retry_count: number;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface WorkflowApproval {
+  id: string;
+  run_id: string;
+  step_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  context_json: Record<string, any>;
+  requested_at: string;
+}
+
+export interface WorkflowTool {
+  name: string;
+  description: string;
+  input_schema: Record<string, any>;
+  output_schema: Record<string, any>;
+}

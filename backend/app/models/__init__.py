@@ -6,6 +6,13 @@ from app.models.workspace import Workspace, WorkspaceMember
 from app.models.document import Document, DocumentChunk
 from app.models.chat import Conversation, Message, Citation
 from app.models.knowledge_graph import Community, Entity, Relationship
+from app.models.workflow import (
+    WorkflowDefinition,
+    WorkflowRun,
+    WorkflowStepResult,
+    WorkflowApproval,
+    WorkflowAuditEntry,
+)
 
 __all__ = [
     "Base",
@@ -20,4 +27,9 @@ __all__ = [
     "Entity",
     "Relationship",
     "Community",
+    "WorkflowDefinition",
+    "WorkflowRun",
+    "WorkflowStepResult",
+    "WorkflowApproval",
+    "WorkflowAuditEntry",
 ]

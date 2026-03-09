@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.core.middleware import RateLimitMiddleware, RequestLoggingMiddleware
-from app.api.routes import auth, chat, documents, workspaces, admin, models as models_route, evaluation
+from app.api.routes import auth, chat, documents, workspaces, admin, models as models_route, evaluation, workflows
 
 logger = structlog.get_logger()
 
@@ -25,8 +25,40 @@ async def lifespan(app: FastAPI):
     await storage.ensure_bucket()
     logger.info("Storage initialized")
 
+    # Register workflow tools
+    from app.workflows.tools.registry import register_all_tools
+    register_all_tools()
+
+    # Register Polarion ALM tools if configured
+    if settings.polarion_base_url:
+        from app.adapters.polarion.tools import (
+            AlmGetSchemaTool, AlmCreateWorkitemsTool, AlmGetWorkitemsTool,
+            AlmUpdateWorkitemsTool, AlmCreateLinksTool,
+        )
+        from app.workflows.tools.registry import ToolRegistry
+        for tool_cls in [AlmGetSchemaTool, AlmCreateWorkitemsTool, AlmGetWorkitemsTool,
+                         AlmUpdateWorkitemsTool, AlmCreateLinksTool]:
+            ToolRegistry.register(tool_cls())
+
+    # Start workflow scheduler if enabled
+    scheduler = None
+    if settings.enable_workflow_worker:
+        import asyncio
+        import redis.asyncio as aioredis
+        from app.models.base import get_session_factory
+        from app.workflows.engine.scheduler import WorkflowScheduler
+
+        redis_client = aioredis.from_url(settings.redis_url)
+        session_factory = get_session_factory()
+        scheduler = WorkflowScheduler(redis_client, session_factory)
+        asyncio.create_task(scheduler.start_worker())
+        logger.info("Workflow scheduler started")
+
     yield
 
+    # Shutdown
+    if scheduler:
+        await scheduler.stop()
     logger.info("Shutting down Enterprise RAG System")
 
 
@@ -69,6 +101,7 @@ def create_app() -> FastAPI:
     app.include_router(models_route.router, prefix="/api/models", tags=["Models"])
     app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
     app.include_router(evaluation.router, prefix="/api/eval", tags=["Evaluation"])
+    app.include_router(workflows.router, prefix="/api/workflows", tags=["Workflows"])
 
     @app.get("/api/health")
     async def health_check():

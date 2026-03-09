@@ -159,6 +159,80 @@ class ApiClient {
   async listUsers() {
     return this.request<any[]>('/admin/users');
   }
+
+  // Workflows
+  async listWorkflowDefinitions(workspaceId: string, status?: string) {
+    const params = new URLSearchParams({ workspace_id: workspaceId });
+    if (status) params.append('status', status);
+    return this.request<any[]>(`/workflows/definitions?${params}`);
+  }
+
+  async getWorkflowDefinition(id: string) {
+    return this.request<any>(`/workflows/definitions/${id}`);
+  }
+
+  async createWorkflowDefinition(data: any) {
+    return this.request<any>('/workflows/definitions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async publishWorkflowDefinition(id: string) {
+    return this.request<any>(`/workflows/definitions/${id}/publish`, { method: 'POST' });
+  }
+
+  async startWorkflowRun(workflowId: string, workspaceId: string, inputJson: Record<string, any>) {
+    return this.request<any>('/workflows/runs', {
+      method: 'POST',
+      body: JSON.stringify({ workflow_id: workflowId, workspace_id: workspaceId, input_json: inputJson }),
+    });
+  }
+
+  async listWorkflowRuns(workspaceId: string, workflowId?: string, status?: string) {
+    const params = new URLSearchParams({ workspace_id: workspaceId });
+    if (workflowId) params.append('workflow_id', workflowId);
+    if (status) params.append('status', status);
+    return this.request<any[]>(`/workflows/runs?${params}`);
+  }
+
+  async getWorkflowRun(runId: string) {
+    return this.request<any>(`/workflows/runs/${runId}`);
+  }
+
+  async getWorkflowRunProgress(runId: string) {
+    return this.request<any>(`/workflows/runs/${runId}/progress`);
+  }
+
+  async getWorkflowRunSteps(runId: string) {
+    return this.request<any[]>(`/workflows/runs/${runId}/steps`);
+  }
+
+  async cancelWorkflowRun(runId: string) {
+    return this.request<any>(`/workflows/runs/${runId}/cancel`, { method: 'POST' });
+  }
+
+  async rerunFromStep(runId: string, stepId: string, overrides?: Record<string, any>) {
+    return this.request<any>(`/workflows/runs/${runId}/rerun-from/${stepId}`, {
+      method: 'POST',
+      body: JSON.stringify({ step_id: stepId, overrides }),
+    });
+  }
+
+  async listPendingApprovals(workspaceId: string) {
+    return this.request<any[]>(`/workflows/approvals/pending?workspace_id=${workspaceId}`);
+  }
+
+  async decideApproval(approvalId: string, approved: boolean, comment?: string) {
+    return this.request<any>(`/workflows/approvals/${approvalId}/decide`, {
+      method: 'POST',
+      body: JSON.stringify({ approved, comment }),
+    });
+  }
+
+  async listWorkflowTools() {
+    return this.request<any[]>('/workflows/tools');
+  }
 }
 
 export const api = new ApiClient();

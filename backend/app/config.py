@@ -66,6 +66,17 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
 
+    # Polarion ALM
+    polarion_base_url: Optional[str] = None
+    polarion_api_token: Optional[str] = None
+    polarion_default_project_id: Optional[str] = None
+
+    # Workflow Engine
+    enable_workflow_worker: bool = True
+    workflow_max_concurrent_runs: int = 10
+    workflow_default_timeout_seconds: int = 3600
+    workflow_step_default_timeout_seconds: int = 300
+
     # Telemetry
     enable_telemetry: bool = False
     otel_exporter_endpoint: str = "http://localhost:4317"

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MessageSquare, FileText, Folders, Shield, LogOut, Plus, ChevronDown } from 'lucide-react';
+import { MessageSquare, FileText, Folders, Shield, LogOut, Plus, ChevronDown, GitBranch } from 'lucide-react';
+import { useWorkflowStore } from '../../stores/workflowStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { api } from '../../api/client';
@@ -23,14 +24,23 @@ export default function Sidebar() {
     }
   }, [activeWorkspace]);
 
+  const { pendingApprovals, fetchPendingApprovals } = useWorkflowStore();
+
+  useEffect(() => {
+    if (activeWorkspace) {
+      fetchPendingApprovals(activeWorkspace.id);
+    }
+  }, [activeWorkspace, fetchPendingApprovals]);
+
   const navItems = [
-    { path: '/chat', icon: MessageSquare, label: 'Chat' },
-    { path: '/documents', icon: FileText, label: 'Documents' },
-    { path: '/workspaces', icon: Folders, label: 'Workspaces' },
+    { path: '/chat', icon: MessageSquare, label: 'Chat', badge: 0 },
+    { path: '/documents', icon: FileText, label: 'Documents', badge: 0 },
+    { path: '/workflows', icon: GitBranch, label: 'Workflows', badge: pendingApprovals.length },
+    { path: '/workspaces', icon: Folders, label: 'Workspaces', badge: 0 },
   ];
 
   if (user?.role === 'admin') {
-    navItems.push({ path: '/admin', icon: Shield, label: 'Admin' });
+    navItems.push({ path: '/admin', icon: Shield, label: 'Admin', badge: 0 });
   }
 
   return (
@@ -93,7 +103,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="p-3 border-t border-gray-800">
-        {navItems.map(({ path, icon: Icon, label }) => (
+        {navItems.map(({ path, icon: Icon, label, badge }) => (
           <Link
             key={path}
             to={path}
@@ -105,6 +115,11 @@ export default function Sidebar() {
           >
             <Icon className="w-4 h-4" />
             {label}
+            {badge > 0 && (
+              <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full bg-yellow-400/20 text-yellow-400">
+                {badge}
+              </span>
+            )}
           </Link>
         ))}
       </nav>
