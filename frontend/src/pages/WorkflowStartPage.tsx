@@ -60,7 +60,7 @@ export default function WorkflowStartPage() {
         <h2 className="text-lg font-medium mb-4">Workflow Inputs</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {Object.entries(inputDefs).map(([key, spec]) => (
+          {Object.entries(inputDefs).filter(([key]) => !key.endsWith('_filename')).map(([key, spec]) => (
             <div key={key}>
               <label className="block text-sm text-gray-300 mb-1">
                 {spec.description || key}
@@ -75,7 +75,7 @@ export default function WorkflowStartPage() {
                       const reader = new FileReader();
                       reader.onload = () => {
                         const base64 = (reader.result as string).split(',')[1];
-                        setInputs({ ...inputs, [key]: base64 });
+                        setInputs({ ...inputs, [key]: base64, [`${key}_filename`]: file.name });
                       };
                       reader.readAsDataURL(file);
                     }
