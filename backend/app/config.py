@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     cohere_api_key: Optional[str] = None
 
+    # Azure OpenAI
+    azure_openai_api_key: Optional[str] = None
+    azure_openai_endpoint: Optional[str] = None
+    azure_openai_api_version: str = "2025-01-01-preview"
+    azure_openai_deployment: Optional[str] = None
+    azure_openai_embedding_deployment: Optional[str] = None
+
     # Default LLM
     default_llm_provider: str = "openai"
     default_llm_model: str = "gpt-4o"

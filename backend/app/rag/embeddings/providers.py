@@ -69,6 +69,38 @@ class OllamaEmbedding(BaseEmbedding):
         return self._dims
 
 
+class AzureOpenAIEmbedding(BaseEmbedding):
+    """Azure OpenAI embeddings."""
+
+    def __init__(self, model: str | None = None, api_key: str | None = None):
+        settings = get_settings()
+        self.model = model or settings.azure_openai_embedding_deployment or settings.default_embedding_model
+        self._client = openai.AsyncAzureOpenAI(
+            api_key=api_key or settings.azure_openai_api_key,
+            azure_endpoint=settings.azure_openai_endpoint,
+            api_version=settings.azure_openai_api_version,
+            http_client=httpx.AsyncClient(verify=False),
+        )
+        self._dims = settings.embedding_dimensions
+
+    async def embed_text(self, text: str) -> list[float]:
+        response = await self._client.embeddings.create(input=[text], model=self.model)
+        return response.data[0].embedding
+
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        all_embeddings = []
+        batch_size = 512
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i : i + batch_size]
+            response = await self._client.embeddings.create(input=batch, model=self.model)
+            all_embeddings.extend([d.embedding for d in response.data])
+        return all_embeddings
+
+    @property
+    def dimensions(self) -> int:
+        return self._dims
+
+
 def get_embedding_provider(provider: str | None = None, **kwargs) -> BaseEmbedding:
     """Factory for embedding providers."""
     settings = get_settings()
@@ -76,6 +108,7 @@ def get_embedding_provider(provider: str | None = None, **kwargs) -> BaseEmbeddi
 
     providers = {
         "openai": OpenAIEmbedding,
+        "azure_openai": AzureOpenAIEmbedding,
         "ollama": OllamaEmbedding,
     }
     cls = providers.get(provider, OpenAIEmbedding)
