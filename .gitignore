@@ -20,6 +20,9 @@ frontend/build/
 .env.local
 .env.production
 
+# Credentials / Secrets
+credentials/
+
 # IDE
 .vscode/
 .idea/
