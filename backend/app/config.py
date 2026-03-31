@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     azure_openai_deployment: Optional[str] = None
     azure_openai_embedding_deployment: Optional[str] = None
 
+    # Google Gemini / Vertex AI
+    google_api_key: Optional[str] = None
+    google_cloud_project: Optional[str] = None
+    google_cloud_location: str = "us-central1"
+    google_application_credentials: Optional[str] = None
+    google_service_account_json: Optional[str] = None
+
     # Default LLM
     default_llm_provider: str = "openai"
     default_llm_model: str = "gpt-4o"

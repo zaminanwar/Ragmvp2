@@ -12,6 +12,7 @@ services:
     volumes:
       - ./backend:/app
       - upload_data:/app/uploads
+      - ./credentials:/app/credentials:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,6 +34,7 @@ services:
     env_file: .env
     volumes:
       - upload_data:/app/uploads
+      - ./credentials:/app/credentials:ro
     depends_on:
       - redis
       - minio

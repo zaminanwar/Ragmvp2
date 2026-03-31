@@ -39,6 +39,18 @@ async def list_providers(user: CurrentUser, settings: SettingsDep):
             "embedding_models": [],
         })
 
+    # Google Gemini
+    if settings.google_api_key or settings.google_cloud_project:
+        providers.append({
+            "id": "gemini",
+            "name": "Google Gemini",
+            "models": [
+                "gemini-2.0-flash-001", "gemini-2.0-flash-lite-001",
+                "gemini-2.5-pro", "gemini-2.5-flash",
+            ],
+            "embedding_models": ["text-embedding-004"],
+        })
+
     # Ollama (local)
     try:
         async with httpx.AsyncClient() as client:

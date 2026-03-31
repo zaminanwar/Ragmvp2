@@ -22,13 +22,13 @@ minio==7.2.12
 
 # Auth
 pyjwt==2.10.1
-passlib[bcrypt]==1.7.4
 bcrypt==4.2.1
 python-jose[cryptography]==3.3.0
 
 # LLM Providers
 openai==1.58.1
 anthropic==0.40.0
+google-genai==1.14.0
 httpx==0.28.1
 
 # Embeddings & Vector

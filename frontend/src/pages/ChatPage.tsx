@@ -36,7 +36,7 @@ export default function ChatPage() {
     if (!input.trim() || !activeWorkspace || isStreaming) return;
 
     const userMessage: Message = {
-      id: crypto.randomUUID(),
+      id: Math.random().toString(36).substring(2) + Date.now().toString(36),
       role: 'user',
       content: input.trim(),
       created_at: new Date().toISOString(),
@@ -71,7 +71,7 @@ export default function ChatPage() {
       setMessages((prev) => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id: Math.random().toString(36).substring(2) + Date.now().toString(36),
           role: 'assistant',
           content: `Error: ${err.message}`,
           created_at: new Date().toISOString(),

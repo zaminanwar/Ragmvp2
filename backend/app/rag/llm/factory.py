@@ -6,6 +6,7 @@ from app.rag.llm.openai_provider import OpenAIProvider
 from app.rag.llm.anthropic_provider import AnthropicProvider
 from app.rag.llm.ollama_provider import OllamaProvider
 from app.rag.llm.azure_openai_provider import AzureOpenAIProvider
+from app.rag.llm.gemini_provider import GeminiProvider
 
 
 def get_llm_provider(
@@ -22,6 +23,7 @@ def get_llm_provider(
         "azure_openai": lambda: AzureOpenAIProvider(model=model or settings.azure_openai_deployment, **kwargs),
         "anthropic": lambda: AnthropicProvider(model=model or "claude-sonnet-4-20250514", **kwargs),
         "ollama": lambda: OllamaProvider(model=model or "llama3.1", **kwargs),
+        "gemini": lambda: GeminiProvider(model=model or settings.default_llm_model, **kwargs),
     }
 
     factory = providers.get(provider)

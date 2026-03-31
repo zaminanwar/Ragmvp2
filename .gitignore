@@ -38,6 +38,9 @@ uploads/
 logs/
 *.log
 
+# Credentials
+credentials/
+
 # OS
 .DS_Store
 Thumbs.db
