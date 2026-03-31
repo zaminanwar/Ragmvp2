@@ -3,7 +3,7 @@
 import enum
 import uuid
 
-from sqlalchemy import Boolean, Enum, String, Text
+from sqlalchemy import Boolean, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,9 +24,9 @@ class User(UUIDMixin, TimestampMixin, Base):
     username: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=True)
-    role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="user_role_enum", create_constraint=True),
-        default=UserRole.MEMBER,
+    role: Mapped[str] = mapped_column(
+        String(20),
+        default=UserRole.MEMBER.value,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     avatar_url: Mapped[str] = mapped_column(String(512), nullable=True)
