@@ -21,7 +21,7 @@ def get_llm_provider(
         "openai": lambda: OpenAIProvider(model=model or settings.default_llm_model, **kwargs),
         "anthropic": lambda: AnthropicProvider(model=model or "claude-sonnet-4-20250514", **kwargs),
         "ollama": lambda: OllamaProvider(model=model or "llama3.1", **kwargs),
-        "gemini": lambda: GeminiProvider(model=model or "gemini-2.0-flash", **kwargs),
+        "gemini": lambda: GeminiProvider(model=model or settings.default_llm_model, **kwargs),
     }
 
     factory = providers.get(provider)
