@@ -233,6 +233,10 @@ class ApiClient {
   async listWorkflowTools() {
     return this.request<any[]>('/workflows/tools');
   }
+
+  async getWorkflowAuditTrail(runId: string) {
+    return this.request<any[]>(`/workflows/runs/${runId}/audit`);
+  }
 }
 
 export const api = new ApiClient();
