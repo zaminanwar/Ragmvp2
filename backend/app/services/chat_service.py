@@ -122,8 +122,8 @@ class ChatService:
             role="assistant",
             content=rag_response.content,
             model_used=rag_response.model,
-            input_tokens=rag_response.input_tokens,
-            output_tokens=rag_response.output_tokens,
+            token_count=rag_response.input_tokens + rag_response.output_tokens,
+            metadata_json={"input_tokens": rag_response.input_tokens, "output_tokens": rag_response.output_tokens},
             was_corrective_rag=rag_response.context.was_corrective if rag_response.context else False,
         )
         self.db.add(assistant_msg)
