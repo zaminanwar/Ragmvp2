@@ -59,7 +59,7 @@ class DocumentChunk(UUIDMixin, TimestampMixin, Base):
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     token_count: Mapped[int] = mapped_column(Integer, default=0)
-    embedding: Mapped[list] = mapped_column(Vector(1536), nullable=True)
+    embedding: Mapped[list] = mapped_column(Vector(768), nullable=True)
     metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     # For hybrid search scoring
