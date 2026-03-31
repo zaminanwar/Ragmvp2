@@ -27,11 +27,11 @@ export default function DocumentsPage() {
   const fetchDocs = useCallback(async () => {
     if (!activeWorkspace) return;
     try {
-      const [docs, s] = await Promise.all([
-        api.listDocuments(activeWorkspace.id),
-        api.getWorkspaceStats(activeWorkspace.id),
-      ]);
+      const docs = await api.listDocuments(activeWorkspace.id);
       setDocuments(docs);
+    } catch {}
+    try {
+      const s = await api.getWorkspaceStats(activeWorkspace.id);
       setStats(s);
     } catch {}
   }, [activeWorkspace]);
