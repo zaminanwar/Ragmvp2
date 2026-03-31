@@ -57,7 +57,7 @@ class DocumentService:
             file_type=file_ext,
             file_size=len(file_content),
             storage_path=storage_path,
-            status=DocumentStatus.PROCESSING,
+            status=DocumentStatus.PROCESSING.value,
         )
         self.db.add(doc)
         await self.db.flush()
@@ -103,14 +103,14 @@ class DocumentService:
                     metadata=chunk.metadata,
                 )
 
-            doc.status = DocumentStatus.INDEXED
+            doc.status = DocumentStatus.INDEXED.value
             doc.chunk_count = len(chunks)
             await self.db.flush()
 
             logger.info("document_indexed", doc_id=str(doc.id), chunks=len(chunks))
 
         except Exception as e:
-            doc.status = DocumentStatus.FAILED
+            doc.status = DocumentStatus.FAILED.value
             doc.error_message = str(e)
             await self.db.flush()
             logger.error("document_processing_failed", doc_id=str(doc.id), error=str(e))

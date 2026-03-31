@@ -4,7 +4,7 @@ import enum
 import uuid
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import BigInteger, Enum, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import BigInteger, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -30,9 +30,9 @@ class Document(UUIDMixin, TimestampMixin, Base):
     file_type: Mapped[str] = mapped_column(String(50), nullable=False)
     file_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     storage_path: Mapped[str] = mapped_column(String(1024), nullable=False)
-    status: Mapped[DocumentStatus] = mapped_column(
-        Enum(DocumentStatus, name="doc_status_enum", create_constraint=True),
-        default=DocumentStatus.PENDING,
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default=DocumentStatus.PENDING.value,
     )
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
     metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict)

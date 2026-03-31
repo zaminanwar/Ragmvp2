@@ -47,7 +47,7 @@ class WorkspaceService:
         member = WorkspaceMember(
             workspace_id=workspace.id,
             user_id=owner.id,
-            role=WorkspaceRole.OWNER,
+            role=WorkspaceRole.OWNER.value,
         )
         self.db.add(member)
         await self.db.flush()
@@ -91,7 +91,7 @@ class WorkspaceService:
         self,
         workspace_id: uuid.UUID,
         user_id: uuid.UUID,
-        role: WorkspaceRole = WorkspaceRole.VIEWER,
+        role: str = WorkspaceRole.VIEWER.value,
     ) -> WorkspaceMember:
         existing = await self.db.execute(
             select(WorkspaceMember).where(

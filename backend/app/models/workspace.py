@@ -3,7 +3,7 @@
 import enum
 import uuid
 
-from sqlalchemy import Boolean, Enum, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -56,9 +56,9 @@ class WorkspaceMember(UUIDMixin, TimestampMixin, Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    role: Mapped[WorkspaceRole] = mapped_column(
-        Enum(WorkspaceRole, name="workspace_role_enum", create_constraint=True),
-        default=WorkspaceRole.VIEWER,
+    role: Mapped[str] = mapped_column(
+        String(20),
+        default=WorkspaceRole.VIEWER.value,
     )
 
     # Relationships

@@ -95,7 +95,7 @@ def _to_response(doc) -> DocumentResponse:
         original_filename=doc.original_filename,
         file_type=doc.file_type,
         file_size=doc.file_size,
-        status=doc.status.value,
+        status=doc.status,
         chunk_count=doc.chunk_count,
         created_at=doc.created_at.isoformat() if doc.created_at else "",
         error_message=doc.error_message,
