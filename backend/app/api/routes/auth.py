@@ -51,7 +51,7 @@ async def register(body: RegisterRequest, db: DbSession):
             "email": user.email,
             "username": user.username,
             "full_name": user.full_name,
-            "role": user.role.value,
+            "role": user.role,
         },
     )
 
@@ -67,7 +67,7 @@ async def login(body: LoginRequest, db: DbSession):
             "email": user.email,
             "username": user.username,
             "full_name": user.full_name,
-            "role": user.role.value,
+            "role": user.role,
         },
     )
 
@@ -79,5 +79,5 @@ async def get_me(user: CurrentUser):
         email=user.email,
         username=user.username,
         full_name=user.full_name,
-        role=user.role.value,
+        role=user.role,
     )

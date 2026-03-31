@@ -30,7 +30,7 @@ async def list_users(admin: AdminUser, db: DbSession):
             "email": u.email,
             "username": u.username,
             "full_name": u.full_name,
-            "role": u.role.value,
+            "role": u.role,
             "is_active": u.is_active,
             "created_at": u.created_at.isoformat() if u.created_at else None,
         }

@@ -34,12 +34,12 @@ class AuthService:
             username=username,
             hashed_password=hash_password(password),
             full_name=full_name,
-            role=UserRole.MEMBER,
+            role=UserRole.MEMBER.value,
         )
         self.db.add(user)
         await self.db.flush()
 
-        token = create_access_token({"sub": str(user.id), "role": user.role.value})
+        token = create_access_token({"sub": str(user.id), "role": user.role})
         return user, token
 
     async def login(self, email: str, password: str) -> tuple[User, str]:
@@ -53,5 +53,5 @@ class AuthService:
         if not user.is_active:
             raise UnauthorizedError("Account is deactivated")
 
-        token = create_access_token({"sub": str(user.id), "role": user.role.value})
+        token = create_access_token({"sub": str(user.id), "role": user.role})
         return user, token
