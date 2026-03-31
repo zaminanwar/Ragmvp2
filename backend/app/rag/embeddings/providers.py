@@ -1,7 +1,11 @@
-"""Embedding providers - OpenAI, Ollama, and sentence-transformers."""
+"""Embedding providers - OpenAI, Gemini, Ollama, and sentence-transformers."""
+
+import json
 
 import httpx
 import openai
+from google import genai
+from google.oauth2 import service_account
 
 from app.config import get_settings
 from app.rag.embeddings.base import BaseEmbedding
@@ -66,6 +70,57 @@ class OllamaEmbedding(BaseEmbedding):
         return self._dims
 
 
+class GeminiEmbedding(BaseEmbedding):
+    """Google Gemini embeddings via Vertex AI."""
+
+    def __init__(self, model: str = "text-embedding-004", **kwargs):
+        settings = get_settings()
+        self.model = model
+        self._dims = 768
+
+        credentials = None
+        if settings.google_service_account_json:
+            info = json.loads(settings.google_service_account_json)
+            credentials = service_account.Credentials.from_service_account_info(
+                info, scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            )
+        elif settings.google_application_credentials:
+            credentials = service_account.Credentials.from_service_account_file(
+                settings.google_application_credentials,
+                scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            )
+
+        self._client = genai.Client(
+            vertexai=True,
+            project=settings.google_cloud_project,
+            location=settings.google_cloud_location,
+            credentials=credentials,
+        )
+
+    async def embed_text(self, text: str) -> list[float]:
+        response = await self._client.aio.models.embed_content(
+            model=self.model,
+            contents=text,
+        )
+        return response.embeddings[0].values
+
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        all_embeddings = []
+        batch_size = 100
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i : i + batch_size]
+            response = await self._client.aio.models.embed_content(
+                model=self.model,
+                contents=batch,
+            )
+            all_embeddings.extend([e.values for e in response.embeddings])
+        return all_embeddings
+
+    @property
+    def dimensions(self) -> int:
+        return self._dims
+
+
 def get_embedding_provider(provider: str | None = None, **kwargs) -> BaseEmbedding:
     """Factory for embedding providers."""
     settings = get_settings()
@@ -73,6 +128,7 @@ def get_embedding_provider(provider: str | None = None, **kwargs) -> BaseEmbeddi
 
     providers = {
         "openai": OpenAIEmbedding,
+        "gemini": GeminiEmbedding,
         "ollama": OllamaEmbedding,
     }
     cls = providers.get(provider, OpenAIEmbedding)
