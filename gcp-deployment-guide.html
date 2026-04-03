@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enterprise RAG — GCP Deployment Guide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.7; }
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 2rem; font-weight: 700; color: #f8fafc; margin-bottom: 8px; }
+  .subtitle { color: #94a3b8; font-size: 1rem; margin-bottom: 48px; }
+  h2 { font-size: 1.1rem; font-weight: 600; color: #38bdf8; margin-top: 48px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #1e293b; }
+  h3 { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; margin-top: 24px; margin-bottom: 8px; }
+  p { margin-bottom: 12px; color: #cbd5e1; font-size: 0.925rem; }
+  ol, ul { margin-bottom: 16px; padding-left: 24px; }
+  li { margin-bottom: 6px; color: #cbd5e1; font-size: 0.925rem; }
+  li strong { color: #e2e8f0; }
+  code { background: #1e293b; color: #7dd3fc; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; font-family: 'SF Mono', 'Fira Code', monospace; }
+  pre { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px 20px; overflow-x: auto; margin-bottom: 16px; }
+  pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.85rem; line-height: 1.6; }
+  .comment { color: #64748b; }
+  .step { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 24px; margin-bottom: 20px; }
+  .step-number { display: inline-block; background: #38bdf8; color: #0f172a; font-weight: 700; font-size: 0.8rem; width: 28px; height: 28px; line-height: 28px; text-align: center; border-radius: 50%; margin-right: 10px; }
+  .step-title { display: inline; font-size: 1rem; font-weight: 600; color: #f1f5f9; }
+  .step p, .step li { font-size: 0.9rem; }
+  .prereq { background: #1e293b; border-left: 3px solid #38bdf8; padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 32px; }
+  .prereq p { margin-bottom: 4px; font-size: 0.9rem; }
+  .warn { background: #422006; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+  .warn p { color: #fcd34d; margin: 0; font-size: 0.85rem; }
+  .env-block { margin: 8px 0; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 0.875rem; }
+  th { text-align: left; padding: 10px 12px; background: #1e293b; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155; }
+  td { padding: 10px 12px; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
+  .toc { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 20px 24px; margin-bottom: 40px; }
+  .toc-title { font-weight: 600; color: #f1f5f9; margin-bottom: 12px; font-size: 0.95rem; }
+  .toc ol { margin-bottom: 0; }
+  .toc li { margin-bottom: 4px; }
+  .toc a { color: #38bdf8; text-decoration: none; font-size: 0.9rem; }
+  .toc a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Enterprise RAG System</h1>
+<p class="subtitle">GCP Deployment Guide</p>
+
+<div class="prereq">
+  <p><strong>Prerequisites</strong></p>
+  <p>&#8226; Access to a GCP project with billing enabled</p>
+  <p>&#8226; A Vertex AI service account with a JSON key file</p>
+  <p>&#8226; Vertex AI API and Compute Engine API enabled on the project</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#step1">Create a VPC Network</a></li>
+    <li><a href="#step2">Create a Cloud NAT</a></li>
+    <li><a href="#step3">Create the VM</a></li>
+    <li><a href="#step4">Create a Firewall Rule for Health Checks</a></li>
+    <li><a href="#step5">SSH into the VM and Install Docker</a></li>
+    <li><a href="#step6">Clone the Repository</a></li>
+    <li><a href="#step7">Create the Credentials File</a></li>
+    <li><a href="#step8">Create the .env File</a></li>
+    <li><a href="#step9">Build and Launch</a></li>
+    <li><a href="#step10">Run Database Migrations</a></li>
+    <li><a href="#step11">Set Up the Load Balancer</a></li>
+    <li><a href="#step12">Verify</a></li>
+  </ol>
+</div>
+
+<!-- Step 1 -->
+<div class="step" id="step1">
+  <span class="step-number">1</span>
+  <div class="step-title">Create a VPC Network</div>
+  <p style="margin-top:12px">The company org policy may have deleted the default VPC. If no default network exists:</p>
+  <ol>
+    <li>GCP Console &rarr; <strong>VPC networks</strong> &rarr; <strong>Create VPC Network</strong></li>
+    <li>Name: <code>default</code></li>
+    <li>Subnet creation mode: <strong>Automatic</strong></li>
+    <li>Click <strong>Create</strong></li>
+  </ol>
+</div>
+
+<!-- Step 2 -->
+<div class="step" id="step2">
+  <span class="step-number">2</span>
+  <div class="step-title">Create a Cloud NAT (for outbound internet)</div>
+  <p style="margin-top:12px">The org policy blocks external IPs on VMs, so the VM needs NAT for outbound access (pulling Docker images, cloning repos, etc.).</p>
+  <h3>Create a Cloud Router</h3>
+  <ol>
+    <li>GCP Console &rarr; <strong>Cloud Routers</strong> &rarr; <strong>Create Router</strong></li>
+    <li>Name: <code>default-router</code></li>
+    <li>Network: <code>default</code></li>
+    <li>Region: <code>us-central1</code></li>
+    <li>Click <strong>Create</strong></li>
+  </ol>
+  <h3>Create a Cloud NAT Gateway</h3>
+  <ol>
+    <li>GCP Console &rarr; <strong>Cloud NAT</strong> &rarr; <strong>Create Cloud NAT gateway</strong></li>
+    <li>Name: <code>default-nat</code></li>
+    <li>Network: <code>default</code>, Region: <code>us-central1</code></li>
+    <li>Cloud Router: <code>default-router</code></li>
+    <li>Click <strong>Create</strong></li>
+  </ol>
+</div>
+
+<!-- Step 3 -->
+<div class="step" id="step3">
+  <span class="step-number">3</span>
+  <div class="step-title">Create the VM</div>
+  <ol style="margin-top:12px">
+    <li>GCP Console &rarr; <strong>Compute Engine</strong> &rarr; <strong>VM instances</strong> &rarr; <strong>Create Instance</strong></li>
+    <li>Name: <code>enterprise-rag</code></li>
+    <li>Region: <code>us-central1</code>, Zone: <code>us-central1-a</code></li>
+    <li>Machine type: <code>e2-medium</code> (2 vCPU, 4 GB RAM)</li>
+    <li>Boot disk: Click <strong>Change</strong> &rarr; Ubuntu 22.04 LTS, x86/64, <strong>60 GB</strong> SSD</li>
+    <li>Firewall: check <strong>Allow HTTP</strong> and <strong>Allow HTTPS</strong></li>
+    <li>Network interface: select the <code>default</code> network</li>
+    <li>Click <strong>Create</strong></li>
+  </ol>
+</div>
+
+<!-- Step 4 -->
+<div class="step" id="step4">
+  <span class="step-number">4</span>
+  <div class="step-title">Create a Firewall Rule for Health Checks</div>
+  <p style="margin-top:12px">The load balancer needs to reach the VM for health checks.</p>
+  <ol>
+    <li>GCP Console &rarr; <strong>VPC network</strong> &rarr; <strong>Firewall</strong> &rarr; <strong>Create Firewall Rule</strong></li>
+    <li>Name: <code>allow-health-check</code></li>
+    <li>Network: <code>default</code></li>
+    <li>Direction: <strong>Ingress</strong></li>
+    <li>Targets: <strong>All instances in the network</strong></li>
+    <li>Source IPv4 ranges: <code>130.211.0.0/22,35.191.0.0/16</code></li>
+    <li>Protocols and ports: <strong>TCP</strong>, port <code>80</code></li>
+    <li>Click <strong>Create</strong></li>
+  </ol>
+</div>
+
+<!-- Step 5 -->
+<div class="step" id="step5">
+  <span class="step-number">5</span>
+  <div class="step-title">SSH into the VM and Install Docker</div>
+  <p style="margin-top:12px">Click the <strong>SSH</strong> button next to your VM in the Compute Engine console.</p>
+  <div class="warn"><p>If IAP blocks you, you may need the <strong>IAP-secured Tunnel User</strong> role added to your account under IAM &amp; Admin &rarr; IAM.</p></div>
+  <p>Once connected, run:</p>
+  <pre><code>curl -fsSL https://get.docker.com | sudo sh
+sudo apt install -y git</code></pre>
+</div>
+
+<!-- Step 6 -->
+<div class="step" id="step6">
+  <span class="step-number">6</span>
+  <div class="step-title">Clone the Repository</div>
+  <pre style="margin-top:12px"><code>sudo git clone https://github.com/zaminanwar/Ragmvp2.git /opt/rag
+cd /opt/rag
+sudo git checkout claude/main-with-gemini</code></pre>
+</div>
+
+<!-- Step 7 -->
+<div class="step" id="step7">
+  <span class="step-number">7</span>
+  <div class="step-title">Create the Credentials File</div>
+  <pre style="margin-top:12px"><code>sudo mkdir -p /opt/rag/credentials
+sudo nano /opt/rag/credentials/service-account.json</code></pre>
+  <p>Paste the full Vertex AI service account JSON key (with the real <code>private_key</code>).<br>Save with <strong>Ctrl+O</strong>, <strong>Enter</strong>, then exit with <strong>Ctrl+X</strong>.</p>
+</div>
+
+<!-- Step 8 -->
+<div class="step" id="step8">
+  <span class="step-number">8</span>
+  <div class="step-title">Create the .env File</div>
+  <pre style="margin-top:12px"><code>sudo cp /opt/rag/.env.example /opt/rag/.env
+sudo nano /opt/rag/.env</code></pre>
+  <p>Update the following settings:</p>
+  <pre><code><span class="comment"># Change these to random strings</span>
+SECRET_KEY=&lt;random-string&gt;
+JWT_SECRET_KEY=&lt;random-string&gt;
+
+<span class="comment"># Database password (change from default)</span>
+POSTGRES_PASSWORD=&lt;strong-password&gt;
+DATABASE_URL=postgresql+asyncpg://raguser:&lt;your-password&gt;@postgres:5432/ragdb
+DATABASE_SYNC_URL=postgresql://raguser:&lt;your-password&gt;@postgres:5432/ragdb
+
+<span class="comment"># MinIO credentials (change from default)</span>
+MINIO_ACCESS_KEY=&lt;change-me&gt;
+MINIO_SECRET_KEY=&lt;change-me&gt;
+
+<span class="comment"># Gemini / Vertex AI</span>
+GOOGLE_CLOUD_PROJECT=gcp-000630-042326
+GOOGLE_CLOUD_LOCATION=us-central1
+GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/service-account.json
+
+<span class="comment"># Set Gemini as default LLM</span>
+DEFAULT_LLM_PROVIDER=gemini
+DEFAULT_LLM_MODEL=gemini-2.5-flash
+
+<span class="comment"># Set Gemini as default embedding provider</span>
+DEFAULT_EMBEDDING_PROVIDER=gemini
+DEFAULT_EMBEDDING_MODEL=text-embedding-004
+EMBEDDING_DIMENSIONS=768</code></pre>
+  <p>Save and exit.</p>
+</div>
+
+<!-- Step 9 -->
+<div class="step" id="step9">
+  <span class="step-number">9</span>
+  <div class="step-title">Build and Launch</div>
+  <pre style="margin-top:12px"><code>cd /opt/rag
+sudo docker compose up -d</code></pre>
+  <p>This takes <strong>10&ndash;15 minutes</strong> the first time (pulling images and building containers).</p>
+  <div class="warn"><p>If Elasticsearch fails its health check on the first start (common), just run <code>sudo docker compose up -d</code> again.</p></div>
+</div>
+
+<!-- Step 10 -->
+<div class="step" id="step10">
+  <span class="step-number">10</span>
+  <div class="step-title">Run Database Migrations</div>
+  <pre style="margin-top:12px"><code><span class="comment"># Run migrations</span>
+sudo docker compose exec backend alembic upgrade head
+
+<span class="comment"># Update vector dimension for Gemini embeddings (768 instead of 1536)</span>
+sudo docker compose exec postgres psql -U raguser -d ragdb \
+  -c "ALTER TABLE document_chunks ALTER COLUMN embedding TYPE vector(768);"</code></pre>
+</div>
+
+<!-- Step 11 -->
+<div class="step" id="step11">
+  <span class="step-number">11</span>
+  <div class="step-title">Set Up the Load Balancer</div>
+  <p style="margin-top:12px">Since the org policy blocks external IPs on VMs, a load balancer exposes the app publicly.</p>
+
+  <h3>Create an Instance Group</h3>
+  <ol>
+    <li>GCP Console &rarr; <strong>Instance groups</strong> &rarr; <strong>Create Instance Group</strong></li>
+    <li>Select <strong>New unmanaged instance group</strong></li>
+    <li>Name: <code>rag-instance-group</code></li>
+    <li>Region: <code>us-central1</code>, Zone: <code>us-central1-a</code></li>
+    <li>Network: <code>default</code></li>
+    <li>Select your VM from the dropdown</li>
+    <li>Port mapping: name <code>http</code>, port <code>80</code></li>
+    <li>Click <strong>Create</strong></li>
+  </ol>
+
+  <h3>Create the Load Balancer</h3>
+  <ol>
+    <li>GCP Console &rarr; <strong>Load balancing</strong> &rarr; <strong>Create Load Balancer</strong></li>
+    <li>Type: <strong>Application Load Balancer</strong> &rarr; <strong>Public</strong> &rarr; <strong>Global</strong> &rarr; <strong>Global external Application Load Balancer</strong></li>
+    <li>Name: <code>rag-load-balancer</code></li>
+    <li><strong>Frontend configuration</strong>: Protocol HTTP, Port 80</li>
+    <li><strong>Backend configuration</strong>: Create a backend service
+      <ul>
+        <li>Name: <code>rag-backend-service</code></li>
+        <li>Backend type: Instance group</li>
+        <li>Select <code>rag-instance-group</code>, port <code>80</code></li>
+        <li>Health check: Create new &mdash; name <code>rag-health-check</code>, HTTP, port 80, path <code>/api/health</code></li>
+      </ul>
+    </li>
+    <li>Click <strong>Create</strong></li>
+  </ol>
+  <p>Wait 2&ndash;3 minutes for provisioning. The frontend IP shown is your app's public URL.</p>
+</div>
+
+<!-- Step 12 -->
+<div class="step" id="step12">
+  <span class="step-number">12</span>
+  <div class="step-title">Verify</div>
+  <p style="margin-top:12px">Open <code>http://&lt;load-balancer-ip&gt;</code> in your browser. You should see the login page.</p>
+  <ol>
+    <li>Register an account</li>
+    <li>Create a workspace (toggle RAG features as desired)</li>
+    <li>Upload a document</li>
+    <li>Chat with it</li>
+  </ol>
+</div>
+
+<!-- Maintenance -->
+<h2>Updating the App</h2>
+<p>When code changes are pushed to the repository:</p>
+<pre><code>cd /opt/rag
+sudo git pull origin claude/main-with-gemini
+sudo docker compose up -d --build</code></pre>
+
+<p>For frontend-only changes:</p>
+<pre><code>sudo docker compose up -d --build frontend</code></pre>
+
+<p>For backend-only changes:</p>
+<pre><code>sudo docker compose up -d --build backend</code></pre>
+
+<!-- Useful Commands -->
+<h2>Useful Commands</h2>
+<table>
+  <thead>
+    <tr><th>Task</th><th>Command</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Check all services</td><td><code>sudo docker compose ps</code></td></tr>
+    <tr><td>View backend logs</td><td><code>sudo docker logs rag-backend-1 --tail 30</code></td></tr>
+    <tr><td>Restart a service</td><td><code>sudo docker compose restart backend</code></td></tr>
+    <tr><td>Full restart</td><td><code>sudo docker compose down &amp;&amp; sudo docker compose up -d</code></td></tr>
+    <tr><td>Check health</td><td><code>curl http://localhost/api/health</code></td></tr>
+  </tbody>
+</table>
+
+<!-- Architecture -->
+<h2>Architecture Overview</h2>
+<pre><code>Load Balancer (&lt;public-ip&gt;:80)
+  |
+  v
+Nginx (reverse proxy, port 80)
+  |-- /api/*  --&gt; Backend (FastAPI, port 8000)
+  |-- /ws/*   --&gt; Backend (WebSocket)
+  |-- /*      --&gt; Frontend (React, port 3000)
+
+Backend services:
+  - PostgreSQL 16 + pgvector  (vector search)
+  - Elasticsearch 8.12        (BM25 full-text search)
+  - Redis 7                   (cache, job queue)
+  - MinIO                     (S3-compatible document storage)
+  - Collector                 (async document processor)
+  - Ollama                    (optional local LLM)</code></pre>
+
+<h2>Data Residency</h2>
+<table>
+  <thead>
+    <tr><th>Data</th><th>Location</th><th>Leaves GCP?</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Raw documents</td><td>MinIO on VM disk</td><td>No</td></tr>
+    <tr><td>Embeddings</td><td>PostgreSQL on VM disk</td><td>No</td></tr>
+    <tr><td>Full-text index</td><td>Elasticsearch on VM disk</td><td>No</td></tr>
+    <tr><td>Chat history</td><td>PostgreSQL on VM disk</td><td>No</td></tr>
+    <tr><td>Document text (for embedding)</td><td>Vertex AI us-central1</td><td>No &mdash; stays in GCP</td></tr>
+    <tr><td>User queries + context</td><td>Vertex AI us-central1</td><td>No &mdash; stays in GCP</td></tr>
+  </tbody>
+</table>
+
+</div>
+</body>
+</html>
